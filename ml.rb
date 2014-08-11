@@ -1,13 +1,42 @@
 class Board
-	attr_accessor :board, :height, :width
-	def initialize(height=10, width=10)		
+	attr_accessor :board, :height, :width, :num_bombs
+	def initialize(height=10, width=10, num_bombs=10)		
 		@height = height
 		@width = width
 		@board = Array.new(height) {Array.new(width,nil)}
+		@num_bombs = num_bombs
 
-		(0..(@height-1)).each do |i|
-			(0..(@width-1)).each do |j|
-				@board[i][j] = Tile.new([true,false].sample)
+		(0..@height-1).each do |i|
+			(0..@width-1).each do |j|
+				@board[i][j] = Tile.new
+			end
+		end
+
+		n = 0
+		while (n < @num_bombs)
+			i = (0..(@height-1)).to_a.sample
+			j =	(0..(@width-1)).to_a.sample
+			if (!@board[i][j].has_bomb)
+				@board[i][j].has_bomb = true
+				n=n+1
+			end
+		end
+
+		dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
+
+		(0..@height-1).each do |i|
+			(0..@width-1).each do |j|
+				count = 0
+				dirs.each do |d_i,d_j|
+					t_i = i+d_i
+					t_j = j+d_j
+					if (t_i >=0 && t_i < @height && t_j >= 0 && t_j < @width)
+						if (@board[t_i][t_j].has_bomb)
+							count = count+1
+						end
+					end
+				end
+				@board[i][j].number = count
 			end
 		end
 	end
@@ -18,19 +47,15 @@ class Board
 			@board[i][j].marked = false
 		else
 			@board[i][j].marked = true
-			true
 		end
 	end
 	def flip(i,j)
 		if (@board[i][j].has_bomb)
 			puts "BOOM"
-			"BOMB"
 		elsif (@board[i][j].flipped)
 			puts "already flipped!"
-			false
 		else
 			@board[i][j].flipped = true
-			true
 		end
 	end
 	def out(final=false)
@@ -45,15 +70,15 @@ class Board
 end
 
 class Tile
-	attr_accessor :flipped, :marked, :has_bomb
-	def initialize(bomb)
+	attr_accessor :flipped, :marked, :has_bomb, :number
+	def initialize(has_bomb=false)
 		@flipped = false
 		@marked = false
-		@has_bomb = bomb
+		@has_bomb = has_bomb
 	end
 	def out(final=false)
 		if @flipped
-			"O"
+			@number
 		elsif @marked
 			"?"
 		elsif final && @has_bomb
@@ -64,12 +89,22 @@ class Tile
 	end
 end
 
-board = Board.new(10,10)
+class Game
+	def play
+		m = Board.new(10,10,10)
 
-while(true)
-	if (board.flip((0..board.height-1).to_a.sample,(0..board.width-1).to_a.sample) == "BOMB")
-		board.out(true)
-		break
+		while(true)
+			i = gets.chomp.to_i
+			j = gets.chomp.to_i
+			m.flip(i,j)
+			if (m.board[i][j].has_bomb)
+				m.board[i][j].symbol = "!"
+				m.out(true)
+				break
+			end
+			m.out
+		end
 	end
-	board.out
 end
+
+Game.new.play
