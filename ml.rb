@@ -26,17 +26,21 @@ class Board
 
 		(0..@height-1).each do |i|
 			(0..@width-1).each do |j|
-				count = 0
-				dirs.each do |d_i,d_j|
-					t_i = i+d_i
-					t_j = j+d_j
-					if (t_i >=0 && t_i < @height && t_j >= 0 && t_j < @width)
-						if (@board[t_i][t_j].has_bomb)
-							count = count+1
+				if @board[i][j].has_bomb
+					@board[i][j].number = -1
+				else
+					count = 0
+					dirs.each do |d_i,d_j|
+						t_i = i+d_i
+						t_j = j+d_j
+						if (inbounds(t_i,t_j))
+							if (@board[t_i][t_j].has_bomb)
+								count = count+1
+							end
 						end
 					end
+					@board[i][j].number = count
 				end
-				@board[i][j].number = count
 			end
 		end
 	end
@@ -56,7 +60,30 @@ class Board
 			puts "already flipped!"
 		else
 			@board[i][j].flipped = true
+			if (@board[i][j].number == 0)
+				clear(i,j)
+			else
+				#update(i,j)
+			end
 		end
+	end
+	def clear(i,j)
+		dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
+
+		dirs.each do |d_i,d_j|
+			t_i = i+d_i
+			t_j = j+d_j
+
+			if (inbounds(t_i,t_j) && !@board[t_i][t_j].flipped)
+				flip(t_i,t_j)
+				if (@board[t_i][t_j].number == 0)
+					clear(t_i,t_j)
+				end
+			end
+		end
+	end
+	def inbounds(i,j)
+		return (i >=0 && i < @height && j >= 0 && j < @width)
 	end
 	def out(final=false)
 		(0..(@height-1)).each do |i|
@@ -98,10 +125,11 @@ class Game
 			j = gets.chomp.to_i
 			m.flip(i,j)
 			if (m.board[i][j].has_bomb)
-				m.board[i][j].symbol = "!"
 				m.out(true)
 				break
 			end
+
+
 			m.out
 		end
 	end
