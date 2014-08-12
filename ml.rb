@@ -1,10 +1,11 @@
 class Board
-	attr_accessor :board, :height, :width, :num_bombs
+	attr_accessor :board, :height, :width, :num_bombs, :deducer
 	def initialize(height=10, width=10, num_bombs=10)		
 		@height = height
 		@width = width
 		@board = Array.new(height) {Array.new(width,nil)}
 		@num_bombs = num_bombs
+		@deducer = Deducer.new
 
 		(0..@height-1).each do |i|
 			(0..@width-1).each do |j|
@@ -60,11 +61,11 @@ class Board
 			puts "already flipped!"
 		else
 			@board[i][j].flipped = true
-			if (@board[i][j].number == 0)
-				clear(i,j)
-			else
+			# if (@board[i][j].number == 0)
+			# 	clear(i,j)
+			# else
 				#update(i,j)
-			end
+			#end
 		end
 	end
 	def clear(i,j)
@@ -116,6 +117,37 @@ class Tile
 	end
 end
 
+class Chooser
+	attr_accessor :a
+	def initialize(n,k)
+		@a = Array.new(n+1){Array.new(k+1,nil)}
+		gen_confs(n,k)
+		#puts a[n][k].inspect
+		puts a[n][k].size
+	end
+	def gen_confs(n,k)
+		puts "#{n} #{k}"
+		arr = a[n][k]
+		if (arr)
+			# puts "already exists"
+			return arr
+		elsif (k==0)
+			a[n][k] = [[0]*n]
+			# puts "k is 0, made into #{a[n][k]}"
+			return a[n][k]
+		elsif (n==k)
+			a[n][k] = [[1]*n]
+			# puts "n = k, made into #{a[n][k]}"
+			return a[n][k]
+		else
+			a[n][k] = gen_confs(n-1,k-1).map{|x| x + [1]} + gen_confs(n-1,k).map{|x| x + [0]}
+			# puts "made into #{a[n][k]}"
+			return a[n][k]
+		end
+
+	end
+end
+
 class Game
 	def play
 		m = Board.new(10,10,10)
@@ -135,4 +167,7 @@ class Game
 	end
 end
 
-Game.new.play
+Chooser.new(25,12)
+
+
+# Game.new.play
