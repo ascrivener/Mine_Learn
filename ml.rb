@@ -1,6 +1,6 @@
 class Board
-	attr_accessor :board, :height, :width, :num_bombs
-	def initialize(height=10, width=10, num_bombs=10)		
+	attr_accessor :board, :height, :width
+	def initialize(height, width, num_bombs)		
 		@height = height
 		@width = width
 		@board = Array.new(height) {Array.new(width,nil)}
@@ -59,7 +59,7 @@ class Board
 			puts "already flipped!"
 		else
 			@board[i][j].flipped = true
-			gen_confs(i,j)
+			update_confs(i,j)
 			if (@board[i][j].number == 0)
 				clear(i,j)
 			end
@@ -81,14 +81,15 @@ class Board
 	def inbounds(i,j)
 		return (i >=0 && i < @height && j >= 0 && j < @width)
 	end
-	def gen_confs(i,j)
+	def update_confs(i,j)
 		tiles = []
 		confs = []
+		new_safe_tiles = []
 
 		@dirs.each do |d_i,d_j|
 			t_i = i+d_i
 			t_j = j+d_j
-			if (inbounds(t_i,t_j) && !board[t_i][t_j].flipped)
+			if (inbounds(t_i,t_j) && !@board[t_i][t_j].known_safe)
 				tiles << [t_i,t_j]
 			end
 		end
@@ -105,8 +106,39 @@ class Board
 			confs << a
 		end
 		@board[i][j].confs = confs
+		if (!@board[i][j].known_safe)
+			new_safe_tiles << [i,j]
+			@board[i][j].known_safe = true
+		end
+
+		if (confs.size == 1)
+			safe_list = get_adj_tiles(i,j) - confs[0]
+			safe_list.each do |x,y|
+				@board[x][y].known_safe = true
+			end
+			new_safe_tiles.concat(safe_list)
+		end
+
+		doSomething(new_safe_tiles,i,j)
+
 		puts "confs for #{i}, #{j}: #{confs.inspect}"
 	end
+	def doSomething(a,i,j)
+		puts "new safe tiles for #{i}, #{j}: #{a.inspect}"
+	end
+
+	def get_adj_tiles(i,j)
+		a = []
+		@dirs.each do |d_i,d_j|
+			t_i = i+d_i
+			t_j = j+d_j
+			if (inbounds(t_i,t_j) && !@board[t_i][t_j].flipped)
+				a << [t_i,t_j]
+			end
+		end
+		return a
+	end
+
 	def out(final=false)
 		print "\n   "
 		(0..(@width-1)).each do |i|
@@ -127,13 +159,14 @@ class Board
 end
 
 class Tile
-	attr_accessor :flipped, :marked, :has_bomb, :number, :confs
+	attr_accessor :flipped, :marked, :has_bomb, :number, :confs, :known_safe
 	def initialize(has_bomb=false)
 		@flipped = false
 		@marked = false
 		@has_bomb = has_bomb
 		@number = -1
 		@confs = nil
+		@known_safe = false
 	end
 	def out(final=false)
 		if @flipped
@@ -180,8 +213,14 @@ class Chooser
 end
 
 class Game
+	def initialize(height=10, width=10, num_bombs=10)
+		@height = height
+		@width = width
+		@num_bombs = num_bombs
+		play
+	end
 	def play
-		m = Board.new(10,10,10)
+		m = Board.new(@height,@width,@num_bombs)
 
 		while(true)
 			i = gets.chomp.to_i
@@ -199,4 +238,4 @@ class Game
 end
 
 
-Game.new.play
+Game.new(10,10,10)
