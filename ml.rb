@@ -82,19 +82,56 @@ class Board
 		return (i >=0 && i < @height && j >= 0 && j < @width)
 	end
 	def update_confs(i,j)
+		new_safe_tiles = []
+
+		@board[i][j].confs = gen_confs(i,j)
+
+
+
+		if (!@board[i][j].known_safe)
+			new_safe_tiles << [i,j]
+			@board[i][j].known_safe = true
+		end
+
+
+
+		# if (confs.size == 1)
+		# 	safe_list = tiles - confs[0]
+		# 	safe_list.each do |x,y|
+		# 		@board[x][y].known_safe = true
+		# 		# !!!! make sure it is known what causes [x,y] to be safe! somehow
+		# 	end
+		# 	confs[0].each do |x,y|
+		# 		@board[x][y].known_bomb = true
+		# 		#!!!!! make sure blah blah blah to be bomb! blah blah blah
+		# 	end
+		# 	new_safe_tiles.concat(safe_list)
+		# end
+
+		# doSomething(new_safe_tiles)
+
+		puts "confs for #{i}, #{j}: #{@board[i][j].confs.inspect}"
+	end
+
+	def gen_confs(i,j)
 		tiles = []
 		confs = []
-		new_safe_tiles = []
+		known_bomb_count = 0
 
 		@dirs.each do |d_i,d_j|
 			t_i = i+d_i
 			t_j = j+d_j
+
 			if (inbounds(t_i,t_j) && !@board[t_i][t_j].known_safe)
 				tiles << [t_i,t_j]
 			end
+			if (inbounds(t_i,t_j) && @board[t_i][t_j].known_bomb)
+				tiles.delete([t_i,t_j])
+				known_bomb_count += 1
+			end
 		end
 
-		list = Chooser.new(tiles.size,@board[i][j].number).confs
+		list = Chooser.new(tiles.size,@board[i][j].number-known_bomb_count).confs
 
 		list.each do |c_list|
 			a=[]
@@ -105,26 +142,48 @@ class Board
 			end
 			confs << a
 		end
-		@board[i][j].confs = confs
-		if (!@board[i][j].known_safe)
-			new_safe_tiles << [i,j]
-			@board[i][j].known_safe = true
-		end
 
-		if (confs.size == 1)
-			safe_list = get_adj_tiles(i,j) - confs[0]
-			safe_list.each do |x,y|
-				@board[x][y].known_safe = true
+
+		affected_tiles = []
+		tiles.each do |x,y|
+			@dirs.each do |d_x,d_y|
+				t_x = x+d_x
+				t_y = y+d_y
+
+				if (inbounds(t_x,t_y) && t_x != i && t_y != j && @board[t_x][t_y].flipped && !affected_tiles.include?([t_x,t_y]))
+					affected_tiles << [t_x,t_y]
+				end
 			end
-			new_safe_tiles.concat(safe_list)
 		end
 
-		doSomething(new_safe_tiles,i,j)
+		affected_tiles.each do |x,y|
+			unknown_tiles = []
+			@dirs.each do |d_x,d_y|
+				t_x = x+d_x
+				t_y = y+d_y
+				if (inbounds(t_x,t_y) && !@board[t_x][t_y].known_safe && !@board[t_x][t_y].known_bomb)
+					unknown_tiles << [t_x,t_y]
+				end
+			end 
+			confs.each do |conf1|
+				flag = false
+				@board[x][y].confs.each do |conf2|
+					if ((conf1 & unknown_tiles).to_set == conf2.to_set)
+						flag = true
+					end
+				end
+				if !flag
+					confs.delete(conf1)
+					puts "deleting #{conf1}"
+				end
+			end
+		end
 
-		puts "confs for #{i}, #{j}: #{confs.inspect}"
+
+		return confs
 	end
-	def doSomething(a,i,j)
-		puts "new safe tiles for #{i}, #{j}: #{a.inspect}"
+	def doSomething(safe_tiles)
+		
 	end
 
 	def get_adj_tiles(i,j)
@@ -159,7 +218,7 @@ class Board
 end
 
 class Tile
-	attr_accessor :flipped, :marked, :has_bomb, :number, :confs, :known_safe
+	attr_accessor :flipped, :marked, :has_bomb, :number, :confs, :known_safe, :known_bomb
 	def initialize(has_bomb=false)
 		@flipped = false
 		@marked = false
@@ -167,6 +226,7 @@ class Tile
 		@number = -1
 		@confs = nil
 		@known_safe = false
+		@known_bomb
 	end
 	def out(final=false)
 		if @flipped
@@ -237,5 +297,5 @@ class Game
 	end
 end
 
-
+require 'set'
 Game.new(10,10,10)
