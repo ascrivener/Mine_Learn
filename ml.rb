@@ -60,9 +60,9 @@ class Board
 		else
 			@board[i][j].flipped = true
 			update_confs(i,j)
-			if (@board[i][j].number == 0)
-				clear(i,j)
-			end
+			# if (@board[i][j].number == 0)
+			# 	clear(i,j)
+			# end
 		end
 	end
 	def clear(i,j)
@@ -84,14 +84,14 @@ class Board
 	def update_confs(i,j)
 		new_safe_tiles = []
 
-		@board[i][j].confs = gen_confs(i,j)
+		gen_confs(i,j)
 
+		
 
-
-		if (!@board[i][j].known_safe)
-			new_safe_tiles << [i,j]
-			@board[i][j].known_safe = true
-		end
+		# if (!@board[i][j].known_safe)
+		# 	new_safe_tiles << [i,j]
+		# 	@board[i][j].known_safe = true
+		# end
 
 
 
@@ -110,11 +110,11 @@ class Board
 
 		# doSomething(new_safe_tiles)
 
-		puts "confs for #{i}, #{j}: #{@board[i][j].confs.inspect}"
+		puts "confs after deleting: #{@board[i][j].confs.inspect}"
 	end
 
 	def gen_confs(i,j)
-		tiles = []
+		cur_unknown_tiles = []
 		confs = []
 		known_bomb_count = 0
 
@@ -123,15 +123,15 @@ class Board
 			t_j = j+d_j
 
 			if (inbounds(t_i,t_j) && !@board[t_i][t_j].known_safe)
-				tiles << [t_i,t_j]
+				cur_unknown_tiles << [t_i,t_j]
 			end
 			if (inbounds(t_i,t_j) && @board[t_i][t_j].known_bomb)
-				tiles.delete([t_i,t_j])
+				cur_unknown_tiles.delete([t_i,t_j])
 				known_bomb_count += 1
 			end
 		end
 
-		list = Chooser.new(tiles.size,@board[i][j].number-known_bomb_count).confs
+		list = Chooser.new(cur_unknown_tiles.size,@board[i][j].number-known_bomb_count).confs
 
 		list.each do |c_list|
 			a=[]
@@ -143,31 +143,41 @@ class Board
 			confs << a
 		end
 
+		@board[i][j].confs = confs
 
+		puts "confs before deleting for #{i}, #{j}: #{confs}"
+
+		queue = [[i,j]]
+		explored_tiles = [[i,j]]
+
+		while (queue.size > 0)
+			list = propogate(queue.delete_at(0),explored_tiles)
+			queue << list
+			explored_tiles << list
+		end
+
+		return confs
+	end
+	
+	def propogate(cur_tile,explored_tiles)
 		affected_tiles = []
-		tiles.each do |x,y|
-			@dirs.each do |d_x,d_y|
-				t_x = x+d_x
-				t_y = y+d_y
+		get_unknown_tiles(cur_tile[0],cur_tile[1]).each do |i,j|
+			@dirs.each do |d_i,d_j|
+				t_i = i+d_i
+				t_j = j+d_j
 
-				if (inbounds(t_x,t_y) && t_x != i && t_y != j && @board[t_x][t_y].flipped && !affected_tiles.include?([t_x,t_y]))
-					affected_tiles << [t_x,t_y]
+				if (inbounds(t_i,t_j) && @board[t_i][t_j].flipped && !affected_tiles.include?([t_i,t_j]) && !explored_tiles.include?([t_i,t_j]))
+					affected_tiles << [t_i,t_j]
 				end
 			end
 		end
 
-		affected_tiles.each do |x,y|
-			unknown_tiles = []
-			@dirs.each do |d_x,d_y|
-				t_x = x+d_x
-				t_y = y+d_y
-				if (inbounds(t_x,t_y) && !@board[t_x][t_y].known_safe && !@board[t_x][t_y].known_bomb)
-					unknown_tiles << [t_x,t_y]
-				end
-			end 
-			confs.each do |conf1|
+		affected_tiles.each do |i,j|
+			unknown_tiles = get_unknown_tiles(i,j)
+			
+			@board[cur_tile[0]][cur_tile[1]].confs.each do |conf1|
 				flag = false
-				@board[x][y].confs.each do |conf2|
+				@board[i][j].confs.each do |conf2|
 					if ((conf1 & unknown_tiles).to_set == conf2.to_set)
 						flag = true
 					end
@@ -179,11 +189,19 @@ class Board
 			end
 		end
 
-
-		return confs
+		return affected_tiles
 	end
-	def doSomething(safe_tiles)
-		
+
+	def get_unknown_tiles(i,j)
+		unknown_tiles = []
+		@dirs.each do |d_i,d_j|
+			t_i = i+d_i
+			t_j = j+d_j
+			if (inbounds(t_i,t_j) && !@board[t_i][t_j].known_safe && !@board[t_i][t_j].known_bomb)
+				unknown_tiles << [t_i,t_j]
+			end
+		end
+		return unknown_tiles
 	end
 
 	def get_adj_tiles(i,j)
