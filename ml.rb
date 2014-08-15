@@ -137,7 +137,7 @@ class Board
 			a=[]
 			c_list.each_with_index do |elm,k|
 				if (elm == 1)
-					a << tiles[k]
+					a << cur_unknown_tiles[k]
 				end
 			end
 			confs << a
@@ -150,13 +150,14 @@ class Board
 		queue = [[i,j]]
 		explored_tiles = [[i,j]]
 
-		while (queue.size > 0)
-			list = propogate(queue.delete_at(0),explored_tiles)
-			queue << list
-			explored_tiles << list
+		while (queue[0] != [])
+			puts "propogating #{queue[0]}"
+			lists = propogate(queue.delete_at(0),explored_tiles)
+			queue << lists[0]
+			explored_tiles << lists[1]
 		end
 
-		return confs
+		# return confs
 	end
 	
 	def propogate(cur_tile,explored_tiles)
@@ -172,24 +173,66 @@ class Board
 			end
 		end
 
+		unknown_tiles = get_unknown_tiles(cur_tile[0],cur_tile[1])
+		last_tiles = []
+		confs = @board[cur_tile[0]][cur_tile[1]].confs
+
 		affected_tiles.each do |i,j|
-			unknown_tiles = get_unknown_tiles(i,j)
+			affected_unknown_tiles = get_unknown_tiles(i,j)
+
+			possible_confs = Set.new
+
+			flag2 = false
 			
-			@board[cur_tile[0]][cur_tile[1]].confs.each do |conf1|
+			confs.each do |conf1|
 				flag = false
 				@board[i][j].confs.each do |conf2|
-					if ((conf1 & unknown_tiles).to_set == conf2.to_set)
+					if ((conf1 & affected_unknown_tiles).to_set == conf2.to_set)
+						possible_confs.add(conf2)
 						flag = true
 					end
 				end
 				if !flag
-					confs.delete(conf1)
+					flag2 = true
+					@board[cur_tile[0]][cur_tile[1]].confs.delete(conf1)
 					puts "deleting #{conf1}"
+				end
+			end
+
+			if flag2
+				puts "confs: #{@board[cur_tile[0]][cur_tile[1]].confs}"
+				@board[cur_tile[0]][cur_tile[1]].confs.inject{|r,e| r & e}.each do |x,y|
+					@board[x][y].known_bomb = true
+					remove_from_confs(cur_tile[0],cur_tile[1],[x,y])
+				end
+				(unknown_tiles - @board[cur_tile[0]][cur_tile[1]].confs.inject{|r,e| r & e}).each do |x,y|
+					@board[x][y].known_safe = true
+					remove_from_confs(cur_tile[0],cur_tile[1],[x,y])
+				end
+			end
+
+			if @board[i][j].confs.to_set == possible_confs
+				last_tiles << [i,j]
+			else
+				@board[i][j].confs = possible_confs.to_a
+				@board[i][j].confs.inject{|r,e| r & e}.each do |x,y|
+					@board[x][y].known_bomb = true
+					remove_from_confs(cur_tile[0],cur_tile[1],[x,y])
+				end
+				(affected_unknown_tiles - @board[i][j].confs.inject{|r,e| r & e}).each do |x,y|
+					@board[x][y].known_safe = true
+					remove_from_confs(cur_tile[0],cur_tile[1],[x,y])
 				end
 			end
 		end
 
-		return affected_tiles
+		return [affected_tiles-last_tiles,affected_tiles]
+	end
+
+	def remove_from_confs(i,j,tile)
+		@board[i][j].confs.each do |c|
+			c.delete([tile[0],tile[1]])
+		end
 	end
 
 	def get_unknown_tiles(i,j)
@@ -244,7 +287,7 @@ class Tile
 		@number = -1
 		@confs = nil
 		@known_safe = false
-		@known_bomb
+		@known_bomb = false
 	end
 	def out(final=false)
 		if @flipped
