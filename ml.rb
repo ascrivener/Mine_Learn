@@ -112,7 +112,7 @@ class Board
 				end
 			end
 			if (known_bombs != [])
-				a << known_bombs
+				a.concat(known_bombs)
 			end
 			if a != []
 				confs << a
@@ -120,6 +120,8 @@ class Board
 		end
 
 		@board[i][j].confs = confs
+
+		puts "confs for #{[i,j]}: #{confs}"
 
 		# queue_additions = []
 
@@ -129,40 +131,67 @@ class Board
 			@dirs.each do |d_i,d_j|
 				t_i = i+d_i
 				t_j = j+d_j
-				# flag = false
 				if inbounds(t_i,t_j) && @board[t_i][t_j].flipped
 					@board[t_i][t_j].confs.each do |conf|
 						if conf.include?([i,j])
-							# flag = true
 							@board[t_i][t_j].confs.delete(conf)
 							puts "deleting #{conf} from #{[t_i,t_j]}"
 						end
 					end
 				end
-				# if flag
-				# 	queue_additions << [t_i,t_j]
-				# end
 			end
 		end
 
 
-		#puts "confs before deleting for #{i}, #{j}: #{confs}"
+		if (get_affected_tiles(i,j,[[i,j]]).size > 0)
+			#possible_confs = Set.new
 
-		# queue = queue_additions
-		# explored_tiles = Array.new(queue)
+			get_affected_tiles(i,j,[[i,j]]).each do |x,y|
+				@board[i][j].confs.each do |c1|
+					if (@board[x][y].confs.size > 0)
+						flag = false
+						@board[x][y].confs.each do |c2|
+							intersection = c2 & get_unknown_tiles(i,j)
+							puts "intersecting #{c2} and #{get_unknown_tiles(i,j)}"
+							puts "intersection = #{intersection}"
+							if (intersection == [] || intersection.to_set == c2.to_set)
+								flag = true
+								puts "#{c1} is possible"
+							end
+						end
+						if (!flag)
+							@board[i][j].confs.delete(c1)
+						end
+					end
+				end
+			end
+			#@board[i][j].confs = possible_confs.to_a
+		end
 
-		# puts "queue: #{queue}"
-		# puts "explored: #{explored_tiles}"
+		puts "new confs for #{[i,j]}: #{@board[i][j].confs}"
+		
 
+		if @board[i][j].confs.size <= 1
+			if @board[i][j].confs.size == 0
+				get_unknown_tiles(i,j).each do |x,y|
+					@board[x][y].known_safe = true
+					puts "[#{x},#{y}] known to be safe!"
+					#remove_from_confs(x,y)
+				end
+			else
+				@board[i][j].confs[0].each do |x,y|
+					@board[x][y].known_bomb = true
+					puts "[#{x},#{y}] known to be bomb!"
+					#remove_from_confs(x,y)# !!!!!! no
+				end
+				(get_unknown_tiles(i,j) - @board[i][j].confs[0]).each do |x,y|
+					@board[x][y].known_safe = true
+					puts "[#{x},#{y}] known to be safe!"
+					#remove_from_confs(x,y)
+				end
+			end
+		end
 
-		# while (queue.size > 0)
-		# 	# puts "explored: #{explored_tiles}"
-		# 	lists = propogate(queue.delete_at(0),explored_tiles)
-		# 	if (lists[0] != [])
-		# 		queue.concat(lists[0])
-		# 	end
-		# 	explored_tiles.concat(lists[1])
-		# end
 
 		queue = [[i,j]]
 		explored_tiles = []
@@ -170,11 +199,14 @@ class Board
 		while (queue.size > 0)
 			cur_tile = queue.delete_at(0)
 			explored_tiles.concat([cur_tile])
-			lists = propogate(cur_tile,explored_tiles)
-			if (lists != [])
-				queue.concat(lists)
+			new_tiles = propogate(cur_tile,explored_tiles)
+			if (new_tiles != [])
+				queue.concat(new_tiles)
 			end
+			puts "new queue: #{queue.inspect}"
 		end
+
+
 
 
 		
@@ -206,7 +238,7 @@ class Board
 			if (t_confs == [])
 				@board[i][j].confs.each do |conf2|
 					flag = false
-					get_unknown_tiles(cur_tile[0],cur_tile[1]).each do |tx,ty|
+					get_adj_tiles(cur_tile[0],cur_tile[1]).each do |tx,ty|
 						if (conf2.include?([tx,ty]))
 							flag = true
 						end
@@ -218,37 +250,16 @@ class Board
 				end
 			end
 			t_confs.each do |conf1|
-				flag = false
+				# flag = false
 				intersection = conf1 & affected_unknown_tiles
 				puts "intersecting #{conf1} and #{affected_unknown_tiles}"
 				puts "intersection = #{intersection}"
-				# if (@board[i][j].confs == [])
-				# 	flag3 = false
-				# 	get_adj_tiles(i,j).each do |x,y|
-				# 		conf1.each do |c2|
-				# 			if c2 == [x,y]
-				# 				flag3 = true
-				# 			end
-				# 		end
-				# 	end
-				# 	if (flag3)
-				# 		@board[cur_tile[0]][cur_tile[1]].confs.delete(conf1)
-				# 		puts "deleting #{conf1} from #{cur_tile.inspect}"
-				# 	else
-
-				# 	end
 				if (@board[i][j].confs != [])
 					@board[i][j].confs.each do |conf2|
 						if (intersection == [] || intersection.to_set == conf2.to_set)
 							possible_confs.add(conf2)
 							puts "#{conf2} is possible"
-							flag = true
 						end
-					end
-					if !flag
-						flag2 = true
-						@board[cur_tile[0]][cur_tile[1]].confs.delete(conf1)
-						puts "deleting #{conf1} from #{cur_tile.inspect}"
 					end
 				end
 			end
@@ -277,28 +288,7 @@ class Board
 			end
 		end
 
-		#puts "hey"
-
-		if flag2 || @board[cur_tile[0]][cur_tile[1]].confs.size <= 1
-			if @board[cur_tile[0]][cur_tile[1]].confs.size == 0
-				get_unknown_tiles(cur_tile[0],cur_tile[1]).each do |x,y|
-					@board[x][y].known_safe = true
-					puts "[#{x},#{y}] known to be safe!"
-					#remove_from_confs(x,y)
-				end
-			else
-				@board[cur_tile[0]][cur_tile[1]].confs.inject{|r,e| r & e}.each do |x,y|
-					@board[x][y].known_bomb = true
-					puts "[#{x},#{y}] known to be bomb!"
-					#remove_from_confs(x,y)# !!!!!! no
-				end
-				(@board[cur_tile[0]][cur_tile[1]].confs.map{|x| get_unknown_tiles(cur_tile[0],cur_tile[1]) - x}.inject{|r,e| r & e}).each do |x,y|
-					@board[x][y].known_safe = true
-					puts "[#{x},#{y}] known to be safe!"
-					#remove_from_confs(x,y)
-				end
-			end
-		end
+		
 
 		output = affected_tiles-last_tiles
 
