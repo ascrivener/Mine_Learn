@@ -60,9 +60,9 @@ class Board
 		else
 			@board[i][j].flipped = true
 			update_confs(i,j)
-			if (@board[i][j].number == 0)
-				clear(i,j)
-			end
+			# if (@board[i][j].number == 0)
+			# 	clear(i,j)
+			# end
 		end
 	end
 	def clear(i,j)
@@ -119,15 +119,15 @@ class Board
 
 		@board[i][j].confs = confs
 
-		#puts "confs for #{[i,j]}: #{confs}"
+		puts "confs for #{[i,j]}: #{confs}"
 
-		#puts "*********PHASE 1*************"
+		puts "*********PHASE 1*************"
 
 		# queue_additions = []
 
 		if !@board[i][j].known_safe
 			@board[i][j].known_safe = true
-			#puts "#{[i,j]} known to be safe!"
+			puts "#{[i,j]} known to be safe!"
 			@dirs.each do |d_i,d_j|
 				t_i = i+d_i
 				t_j = j+d_j
@@ -135,7 +135,7 @@ class Board
 					Array.new(@board[t_i][t_j].confs).each do |conf|
 						if conf.include?([i,j])
 							@board[t_i][t_j].confs.delete(conf)
-							#puts "deleting #{conf} from #{[t_i,t_j]}"
+							puts "deleting #{conf} from #{[t_i,t_j]}"
 							if @board[t_i][t_j].confs.size == 1
 								get_unknown_tiles(t_i,t_j).each do |x,y|
 									if (!@board[x][y].known_bomb)
@@ -154,40 +154,41 @@ class Board
 		t_confs = Array.new(@board[i][j].confs)
 
 		get_affected_tiles(i,j,[[i,j]]).each do |x,y|
-			#puts "combining #{[x,y]} with #{[i,j]}"
-			#puts "confs for [#{i},#{j}]: #{@board[i][j].confs}"
+			puts "combining #{[x,y]} with #{[i,j]}"
+			puts "confs for [#{i},#{j}]: #{@board[i][j].confs}"
 			
 			t_confs.each do |c1|
 				if (@board[x][y].confs.size > 0)
 					intersection = c1 & @board[x][y].confs.inject{|r,e| r | e}
-					#puts "intersecting #{c1} and #{@board[x][y].confs.inject{|r,e| r | e}}"
-					#puts "intersection = #{intersection}"
+					puts "intersecting #{c1} and #{@board[x][y].confs.inject{|r,e| r | e}}"
+					puts "intersection = #{intersection}"
 					flag = false
 					@board[x][y].confs.each do |c2|
-						#puts "intersecting #{c2} and #{common_unknown}"
-						if (intersection == [] || intersection.to_set == (c2 & @board[i][j].confs.inject{|r,e| r | e}).to_set)
+						puts "intersecting #{c2} and #{@board[i][j].confs.inject{|r,e| r | e}}"
+						puts "intersection = #{c2 & @board[i][j].confs.inject{|r,e| r | e}}"
+						if ((intersection == [] && !@board[x][y].confs.inject{|r,e| r | e}.to_set.subset?(@board[i][j].confs.inject{|r,e| r | e}.to_set)) || intersection.to_set == (c2 & @board[i][j].confs.inject{|r,e| r | e}).to_set)
 							flag = true
-							#puts "#{c1} is possible"
+							break
+							puts "#{c1} is possible"
 						end
 					end
 					if (!flag)
 						@board[i][j].confs.delete(c1)
-						#puts "deleting #{c1} from #{[i,j]}"
+						puts "deleting #{c1} from #{[i,j]}"
 					end
 				end
 			end
 		end
 
-		#puts "new confs for #{[i,j]}: #{@board[i][j].confs}"
+		puts "new confs for #{[i,j]}: #{@board[i][j].confs}"
 		
 
 		if @board[i][j].confs.size == 0
 			get_unknown_tiles(i,j).each do |x,y|
 				if (!@board[x][y].known_safe)
 					@board[x][y].known_safe = true
-					#puts "[#{x},#{y}] known to be safe!"
+					puts "[#{x},#{y}] known to be safe!"
 				end
-				#remove_from_confs(x,y)
 			end
 		else
 			@board[i][j].confs.inject{|r,e| r & e}.each do |x,y|
@@ -195,20 +196,18 @@ class Board
 					@board[x][y].known_bomb = true
 					puts "[#{x},#{y}] known to be bomb!"
 				end
-				#remove_from_confs(x,y) #!!!!! no
 			end
 			(@board[i][j].confs.map{|x| get_unknown_tiles(i,j) - x}.inject{|r,e| r & e}).each do |x,y|
 				if (!@board[x][y].known_safe)
 					@board[x][y].known_safe = true
-					#puts "[#{x},#{y}] known to be safe!"
+					puts "[#{x},#{y}] known to be safe!"
 				end
-				#remove_from_confs(x,y)
 			end
 		end
 
-		#puts "*********END OF PHASE 1*************"
+		puts "*********END OF PHASE 1*************"
 
-		#puts "***********PHASE 2***************"
+		puts "***********PHASE 2***************"
 
 
 		queue = [[i,j]]
@@ -221,7 +220,7 @@ class Board
 			if (new_tiles != [])
 				queue.concat(new_tiles)
 			end
-			#puts "new queue: #{queue.inspect}"
+			puts "new queue: #{queue.inspect}"
 		end
 
 
@@ -233,8 +232,8 @@ class Board
 	end
 	
 	def propogate(cur_tile,explored_tiles)
-		#puts "propogating #{cur_tile.inspect}"
-		#puts "explored: #{explored_tiles}"
+		puts "propogating #{cur_tile.inspect}"
+		puts "explored: #{explored_tiles}"
 
 		affected_tiles = get_affected_tiles(cur_tile[0],cur_tile[1],explored_tiles)
 
@@ -242,11 +241,11 @@ class Board
 		last_tiles = []
 		confs = @board[cur_tile[0]][cur_tile[1]].confs
 		
-		#puts "confs for #{cur_tile}: #{confs}"
+		puts "confs for #{cur_tile}: #{confs}"
 		affected_tiles.each do |i,j|
 			last_tile = true
-			#puts "combining #{cur_tile.inspect} with [#{i},#{j}]"
-			#puts "confs for [#{i},#{j}]: #{@board[i][j].confs}"
+			puts "combining #{cur_tile.inspect} with [#{i},#{j}]"
+			puts "confs for [#{i},#{j}]: #{@board[i][j].confs}"
 
 			
 
@@ -257,7 +256,7 @@ class Board
 					t_confs.each do |conf1|
 						if (conf1.include?([tx,ty]))
 							@board[i][j].confs.delete(conf1)
-							#puts "deleting #{conf1} from #{[i,j]}"
+							puts "deleting #{conf1} from #{[i,j]}"
 							last_tile = false
 						end
 					end
@@ -266,29 +265,33 @@ class Board
 				t_confs.each do |conf1|
 
 					intersection = conf1 & confs.inject{|r,e| r | e}
-					#puts "intersecting #{conf1} and #{confs.inject{|r,e| r | e}}"
-					#puts "intersection = #{intersection}"
+					puts "intersecting #{conf1} and #{confs.inject{|r,e| r | e}}"
+					puts "intersection = #{intersection}"
 					flag = false
-					#if (@board[i][j].confs != [])
 					confs.each do |conf2|
-						if (intersection == [] || intersection.to_set == (conf2 & @board[i][j].confs.inject{|r,e| r | e}).to_set)
+						puts "intersecting #{conf2} and #{@board[i][j].confs.inject{|r,e| r | e}}"
+						puts "intersection = #{conf2 & @board[i][j].confs.inject{|r,e| r | e}}"
+						if (intersection == [])
+							!confs.inject{|r,e| r | e}.to_set.subset?(@board[i][j].confs.inject{|r,e| r | e}.to_set)) 
+						else
+						|| intersection.to_set == (conf2 & @board[i][j].confs.inject{|r,e| r | e}).to_set)
 							flag = true
-							#puts "#{conf1} is possible"
+							break
 						end
 					end
 					if (!flag)
 						last_tile = false
 						@board[i][j].confs.delete(conf1)
-						#puts "deleting #{conf1} from #{[i,j]}"
+						puts "deleting #{conf1} from #{[i,j]}"
 					end
 				end
 			end
 
-			#puts "New conf for #{[i,j]}: #{@board[i][j].confs}"
+			puts "New conf for #{[i,j]}: #{@board[i][j].confs}"
 
 
 			if last_tile
-				#puts "#{[i,j]} is a last tile"
+				puts "#{[i,j]} is a last tile"
 				last_tiles << [i,j]
 			else
 				if @board[i][j].confs.size > 0
@@ -297,14 +300,12 @@ class Board
 							@board[x][y].known_bomb = true
 							puts "[#{x},#{y}] known to be bomb!"
 						end
-						#remove_from_confs(x,y) #!!!!! no
 					end
 					(@board[i][j].confs.map{|x| get_unknown_tiles(i,j) - x}.inject{|r,e| r & e}).each do |x,y|
 						if (!@board[x][y].known_safe)
 							@board[x][y].known_safe = true
-							#puts "[#{x},#{y}] known to be safe!"
+							puts "[#{x},#{y}] known to be safe!"
 						end
-						#remove_from_confs(x,y)
 					end
 				end
 			end
@@ -314,28 +315,9 @@ class Board
 
 		output = affected_tiles-last_tiles
 
-		#puts "affected #{output}"
+		puts "affected #{output}"
 
 		return output
-	end
-
-	def remove_from_confs(i,j)
-		@dirs.each do |d_i,d_j|
-			t_i = i+d_i
-			t_j = j+d_j
-
-			if (inbounds(t_i,t_j) && @board[t_i][t_j].flipped)
-				t_confs = Array.new(@board[t_i][t_j].confs)
-				t_confs.each do |c|
-					#puts "conf: #{c}"
-					if c.include?([i,j])
-						#puts "deleting #{c} from #{[t_i,t_j]}"
-						@board[t_i][t_j].confs.delete(c)
-					end
-				end
-				#puts "new confs for #{[t_i,t_j]}: #{@board[t_i][t_j].confs}"
-			end
-		end
 	end
 
 	def get_affected_tiles(i,j,explored_tiles)
@@ -415,6 +397,10 @@ class Tile
 			"?"
 		elsif final && @has_bomb
 			"B"
+		elsif @known_bomb
+			"!"
+		elsif @known_safe
+			"S"
 		else
 			"X"
 		end
